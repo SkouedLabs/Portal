@@ -1,0 +1,4 @@
+# Internal network without any outgoing access: database <-> backend <-> frontend.
+[Network]
+NetworkName=portal-ng-internal
+Internal=true

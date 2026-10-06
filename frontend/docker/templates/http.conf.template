@@ -1,0 +1,21 @@
+# Default mode: plain HTTP on 8080, behind a reverse proxy (nginx, Traefik…) that terminates TLS.
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+# Scheme seen by the browser, as reported by the reverse proxy
+map $http_x_forwarded_proto $forwarded_proto {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
+
+server {
+    listen 8080;
+    listen [::]:8080;
+    server_name _;
+    set $hsts "";
+
+    location = /healthz { access_log off; return 200 "ok\n"; }
+
+    include /tmp/nginx/conf.d/app.inc;
+}

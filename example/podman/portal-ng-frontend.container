@@ -1,0 +1,24 @@
+[Unit]
+Description=Portal-NG — frontend (nginx, plain HTTP for the reverse proxy)
+Requires=portal-ng-backend.service
+After=portal-ng-backend.service
+
+[Container]
+ContainerName=portal-ng-frontend
+Image=emeryn/portal-ng-frontend:latest
+Network=portal-ng-internal.network
+Network=portal-ng.network
+PublishPort=127.0.0.1:8080:8080
+User=101:101
+ReadOnly=true
+NoNewPrivileges=true
+DropCapability=all
+Tmpfs=/tmp:mode=1777
+Environment=BACKEND_HOST=portal-ng-backend
+# Environment="TRUSTED_PROXIES=127.0.0.1/32 10.0.0.0/8"
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

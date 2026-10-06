@@ -1,0 +1,58 @@
+# Traefik static configuration for the Portal-NG example.
+# Traefik runs as a non-root user: it listens on 8080 / 8443 inside its container,
+# published as 80 / 443 on the host (see compose.yml).
+
+entryPoints:
+  web:
+    address: ":8080"
+    http:
+      aliasHeadersStrategy: delete
+      encodedCharacters:
+        allowEncodedSlash: false
+        allowEncodedBackSlash: false
+        allowEncodedNullCharacter: false
+        allowEncodedSemicolon: false
+        allowEncodedPercent: false
+        allowEncodedQuestionMark: false
+        allowEncodedHash: false
+      redirections:
+        entryPoint:
+          to: ":443"          # public port (the container listens on 8443)
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":8443"
+    http:
+      # Header aliases (X_Forwarded_For…) could spoof the headers Traefik manages: drop them
+      aliasHeadersStrategy: delete
+      # Clean, unambiguous paths only: the admin allow-list matches on the path, so the proxy and
+      # Portal-NG must see the same one (no %2F, %5C, %25… tricks). Portal-NG never needs them.
+      sanitizePath: true
+      encodedCharacters:
+        allowEncodedSlash: false
+        allowEncodedBackSlash: false
+        allowEncodedNullCharacter: false
+        allowEncodedSemicolon: false
+        allowEncodedPercent: false
+        allowEncodedQuestionMark: false
+        allowEncodedHash: false
+  ping:
+    address: ":8082"          # health check only, not published
+    http:
+      aliasHeadersStrategy: delete
+
+providers:
+  # File provider: routes are declared in dynamic/, no access to the Docker socket needed
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+ping:
+  entryPoint: ping
+
+log:
+  level: INFO
+accessLog: {}
+
+api:
+  dashboard: false

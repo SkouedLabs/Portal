@@ -1,0 +1,29 @@
+[Unit]
+Description=Portal-NG — PostgreSQL
+
+[Container]
+ContainerName=portal-ng-db
+Image=docker.io/library/postgres:17-alpine
+Network=portal-ng-internal.network
+Volume=portal-ng-db.volume:/var/lib/postgresql/data
+Environment=POSTGRES_DB=portal POSTGRES_USER=portal POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+# podman secret create portal-ng-db-password -
+Secret=portal-ng-db-password,type=env,target=POSTGRES_PASSWORD
+# Non-root from the start (postgres user of the image), read-only root filesystem, no capabilities
+User=70:70
+ReadOnly=true
+NoNewPrivileges=true
+DropCapability=all
+Tmpfs=/var/run/postgresql:mode=1777
+Tmpfs=/tmp:mode=1777
+HealthCmd=pg_isready -U portal -d portal
+HealthInterval=5s
+HealthRetries=30
+Notify=healthy
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

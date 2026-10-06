@@ -1,0 +1,111 @@
+# Works out of the box: `docker compose up -d --build`, then open http://localhost:8080
+# Production: put your reverse proxy (nginx on the host, Traefik…) in front for TLS and set
+# PUBLIC_URL to the https:// address users type. See example/ and the README.
+# Every setting below has a default; override any of them in a .env file (see .env.example).
+# Offline / air-gapped hosts: see "Offline installation" in the README (docker save / load, --no-build).
+name: portal-ng
+
+# Hardening shared by every container: non-root user (set per service and in the images),
+# read-only root filesystem, no Linux capabilities, no privilege escalation.
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  db:
+    <<: *hardening
+    image: postgres:17-alpine
+    # Runs directly as the "postgres" user of the image (uid 70) instead of starting as root.
+    user: "70:70"
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: portal
+      POSTGRES_USER: portal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portal-ng-db-password}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    tmpfs:
+      - /var/run/postgresql:mode=1777
+      - /tmp:mode=1777
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portal -d portal"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  backend:
+    <<: *hardening
+    build: ./backend
+    image: emeryn/portal-ng-backend:latest
+    # Non-root user defined in the image (uid 10001)
+    user: "10001:10001"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://portal:${POSTGRES_PASSWORD:-portal-ng-db-password}@db:5432/portal
+      # Empty = generated on first start and stored in the "app-data" volume (/data/secret_key).
+      SECRET_KEY: ${SECRET_KEY:-}
+      # Address users type in their browser (the reverse proxy's https:// URL in production).
+      # Used for the OIDC redirect URI, WebAuthn security keys and Secure cookies.
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      INITIAL_ADMIN_USERNAME: ${INITIAL_ADMIN_USERNAME:-admin}
+      # Default "admin" (a warning is logged until it is changed). Set it in .env before the first start,
+      # or set it to an empty value to get a random password printed once in `docker compose logs backend`.
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD-admin}
+      # Break-glass: "true" re-enables local sign-in if it was disabled in Admin › Authentication.
+      FORCE_LOCAL_LOGIN: ${FORCE_LOCAL_LOGIN:-false}
+      # Empty = automatic: Secure cookies when PUBLIC_URL is https://
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-5}
+    volumes:
+      - app-data:/data
+    tmpfs:
+      - /tmp:mode=1777
+    # "egress": outgoing access to your LDAP directory and OIDC provider (no published port).
+    networks: [internal, egress]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+
+  frontend:
+    <<: *hardening
+    build: ./frontend
+    image: emeryn/portal-ng-frontend:latest
+    # Unprivileged nginx (uid 101): no root master process
+    user: "101:101"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BACKEND_HOST: backend
+      # Addresses allowed to set X-Forwarded-For (your reverse proxy), so the real client IP is logged.
+      # Default: loopback and private ranges, consistent with a port published on 127.0.0.1 only.
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1/32 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 ::1/128 fc00::/7}
+      # Optional: "true" to terminate TLS in this container instead of a reverse proxy (see README)
+      FRONTEND_TLS: ${FRONTEND_TLS:-false}
+    ports:
+      # Plain HTTP for the reverse proxy running on this host. Bound to 127.0.0.1: not reachable
+      # from the network. Use HTTP_BIND=0.0.0.0 only if the proxy runs on another machine
+      # (then restrict TRUSTED_PROXIES to that machine).
+      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8080}:8080"
+    tmpfs:
+      - /tmp:mode=1777
+    networks: [internal, egress]
+
+networks:
+  internal:
+    internal: true
+  egress: {}
+
+volumes:
+  db-data:
+  app-data:

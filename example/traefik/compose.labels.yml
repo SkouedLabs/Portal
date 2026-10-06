@@ -1,0 +1,36 @@
+# Variant for an EXISTING Traefik using the Docker provider (labels), on an external network
+# named "traefik" (adapt names, entry point and certificate resolver to your setup):
+#
+#   PUBLIC_URL=https://portal.example.internal \
+#     docker compose -f docker-compose.yml -f example/traefik/compose.labels.yml up -d --build
+#
+# Your Traefik must have: an entry point "websecure" (443), a default certificate or a
+# certificatesResolver, and providers.docker.exposedByDefault=false (recommended).
+services:
+  frontend:
+    # Reached by Traefik on the "traefik" network: nothing to publish on the host
+    ports: !reset []
+    networks: [internal, egress, traefik]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: traefik
+      traefik.http.services.portal-ng.loadbalancer.server.port: "8080"
+      # Portal
+      traefik.http.routers.portal-ng.rule: "Host(`portal.example.internal`)"
+      traefik.http.routers.portal-ng.entrypoints: websecure
+      traefik.http.routers.portal-ng.tls: "true"
+      # traefik.http.routers.portal-ng.tls.certresolver: myresolver
+      traefik.http.routers.portal-ng.middlewares: portal-ng-hsts
+      traefik.http.middlewares.portal-ng-hsts.headers.stsSeconds: "63072000"
+      traefik.http.middlewares.portal-ng-hsts.headers.stsIncludeSubdomains: "true"
+      # Administration (UI route and API): administration networks only
+      traefik.http.routers.portal-ng-admin.rule: "Host(`portal.example.internal`) && (PathPrefix(`/admin`) || PathPrefix(`/api/admin/`))"
+      traefik.http.routers.portal-ng-admin.priority: "1000"
+      traefik.http.routers.portal-ng-admin.entrypoints: websecure
+      traefik.http.routers.portal-ng-admin.tls: "true"
+      traefik.http.routers.portal-ng-admin.middlewares: portal-ng-admin-allow,portal-ng-hsts
+      traefik.http.middlewares.portal-ng-admin-allow.ipallowlist.sourcerange: "127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+
+networks:
+  traefik:
+    external: true

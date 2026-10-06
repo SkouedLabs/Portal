@@ -1,0 +1,39 @@
+# Adds Traefik in front of Portal-NG (TLS, HTTP->HTTPS redirect, admin IP allow-list).
+# From the repository root:
+#
+#   sh example/pki/gen-certs.sh portal.example.internal       # or use your own certificate
+#   PUBLIC_URL=https://portal.example.internal \
+#     docker compose -f docker-compose.yml -f example/traefik/compose.yml up -d --build
+#
+# (Paths are relative to the repository root: the first compose file sets the project directory.)
+services:
+  frontend:
+    # Traefik reaches the frontend on the Docker network: nothing to publish on the host
+    ports: !reset []
+
+  traefik:
+    image: traefik:v3
+    # Non-root, read-only filesystem, no capabilities: Traefik listens on 8080 / 8443 inside,
+    # published as 80 / 443. File provider only: no Docker socket mounted.
+    user: "65532:65532"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    command: ["--configFile=/etc/traefik/traefik.yml"]
+    depends_on:
+      frontend:
+        condition: service_healthy
+    ports:
+      - "${TRAEFIK_HTTP_PORT:-80}:8080"
+      - "${TRAEFIK_HTTPS_PORT:-443}:8443"
+    volumes:
+      - ./example/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./example/traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./example/pki/certs:/certs:ro
+    networks: [egress]
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping", "--ping.entryPoint=ping", "--entryPoints.ping.address=:8082"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

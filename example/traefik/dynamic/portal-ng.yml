@@ -1,0 +1,60 @@
+# Traefik dynamic configuration: Portal-NG routes, admin IP allow-list, TLS.
+# Replace portal.example.internal with your hostname (and PUBLIC_URL accordingly).
+
+http:
+  routers:
+    portal-ng:
+      rule: "Host(`portal.example.internal`)"
+      entryPoints: [websecure]
+      service: portal-ng
+      middlewares: [portal-ng-hsts]
+      tls:
+        options: portal-ng
+
+    # Administration (UI route and API): only from the administration networks.
+    # /admin is a client-side route; the protection that matters is on /api/admin/.
+    portal-ng-admin:
+      rule: "Host(`portal.example.internal`) && (PathPrefix(`/admin`) || PathPrefix(`/api/admin/`))"
+      priority: 1000
+      entryPoints: [websecure]
+      service: portal-ng
+      middlewares: [portal-ng-admin-allow, portal-ng-hsts]
+      tls:
+        options: portal-ng
+
+  middlewares:
+    # Portal-NG sends its own security headers (CSP, X-Frame-Options…); HSTS belongs to the TLS layer
+    portal-ng-hsts:
+      headers:
+        stsSeconds: 63072000
+        stsIncludeSubdomains: true
+    portal-ng-admin-allow:
+      ipAllowList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "10.0.0.0/8"
+          - "172.16.0.0/12"
+          - "192.168.0.0/16"
+
+  services:
+    portal-ng:
+      loadBalancer:
+        servers:
+          - url: "http://frontend:8080"    # Portal-NG frontend on the Docker network (plain HTTP)
+
+tls:
+  options:
+    portal-ng:
+      minVersion: VersionTLS13
+      # No curvePreferences: Traefik (Go >= 1.24) then offers the post-quantum hybrid
+      # X25519MLKEM768 first, with X25519 as fallback.
+  certificates:
+    # Certificate of your PKI (demo: example/pki/gen-certs.sh). For ACME / Let's Encrypt,
+    # configure a certificatesResolver in traefik.yml instead.
+    - certFile: /certs/portal.crt
+      keyFile: /certs/portal.key
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/portal.crt
+        keyFile: /certs/portal.key

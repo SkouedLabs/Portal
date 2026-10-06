@@ -1,0 +1,38 @@
+[Unit]
+Description=Portal-NG — backend API
+Requires=portal-ng-db.service
+After=portal-ng-db.service
+
+[Container]
+ContainerName=portal-ng-backend
+Image=emeryn/portal-ng-backend:latest
+Network=portal-ng-internal.network
+Network=portal-ng.network
+Volume=portal-ng-data.volume:/data
+Environment=POSTGRES_HOST=portal-ng-db POSTGRES_USER=portal POSTGRES_DB=portal
+Secret=portal-ng-db-password,type=env,target=POSTGRES_PASSWORD
+# Optional: podman secret create portal-ng-secret-key - (otherwise generated in the data volume)
+# Secret=portal-ng-secret-key,type=env,target=SECRET_KEY
+Environment=PUBLIC_URL=https://portal.example.internal
+Environment=INITIAL_ADMIN_USERNAME=admin
+# Empty: a random password is printed once in `journalctl --user -u portal-ng-backend`
+Environment=INITIAL_ADMIN_PASSWORD=
+# Break-glass: set to true and restart to re-enable local sign-in
+Environment=FORCE_LOCAL_LOGIN=false
+User=10001:10001
+ReadOnly=true
+NoNewPrivileges=true
+DropCapability=all
+Tmpfs=/tmp:mode=1777
+HealthCmd=python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health').status==200 else 1)"
+HealthInterval=10s
+HealthStartPeriod=30s
+HealthRetries=10
+Notify=healthy
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target
