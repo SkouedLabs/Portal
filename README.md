@@ -23,7 +23,7 @@ A company portal inspired by [Homer](https://github.com/bastienwirtz/homer). It 
 No configuration is needed:
 
 ```bash
-docker compose up -d --build
+docker compose up -d 
 ```
 
 Open http://localhost:8080 and sign in as `admin` / `admin`. **Change this password right away** (Admin › Users), or set `INITIAL_ADMIN_PASSWORD` in a `.env` file before the first start. The backend logs a warning as long as the default password is in use.
