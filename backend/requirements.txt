@@ -9,6 +9,8 @@ PyJWT[crypto]>=2.10
 httpx>=0.28
 ldap3>=2.9.1
 python-multipart>=0.0.18
+# Uploaded images are scaled down and re-encoded to WebP (app/services/images.py)
+pillow>=11.0
 webauthn>=2.2,<4
 pyotp>=2.9
 segno>=1.6

@@ -9,7 +9,7 @@
       <div class="card-ui">
         <div class="field"><label>Portal name</label><input v-model="b.portal_name" class="input" maxlength="80" /></div>
         <div class="field"><label>Subtitle</label><input v-model="b.subtitle" class="input" maxlength="120" /></div>
-        <ImageField v-model="b.logo" label="Logo" hint="Transparent SVG or PNG recommended." />
+        <ImageField v-model="b.logo" label="Logo" hint="Leave empty for the bundled Portal-NG logo. Any size: scaled to 512 px and re-encoded to WebP on upload. SVG kept as it is." />
         <ImageField v-model="b.favicon" label="Favicon" hint="Defaults to the logo." />
         <ColorField v-model="b.primary_color" label="Primary colour" placeholder="#3367d6" />
         <h3 class="sub">Sign-in page background</h3>
@@ -30,7 +30,7 @@
           </div>
         </template>
         <template v-if="b.login_bg_type === 'image'">
-          <ImageField v-model="b.login_background" label="Image" hint="Large JPEG or WebP recommended (e.g. 1920×1080)." />
+          <ImageField v-model="b.login_background" label="Image" kind="background" hint="Any size: scaled to 2560 px and re-encoded to WebP on upload." />
           <div class="row">
             <div class="field">
               <label>Darken: {{ Math.round((b.login_bg_overlay || 0) * 100) }}%</label>

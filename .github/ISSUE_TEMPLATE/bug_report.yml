@@ -1,0 +1,84 @@
+name: Bug report
+description: Something does not work the way it is documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. If this is a **security** issue, please close this and use
+        [Report a vulnerability](https://github.com/SkouedLabs/Portal/security/advisories/new) instead.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What you did, what happened, and what you expected instead.
+      placeholder: |
+        A card with "Check status" ticked stays grey on an internal application, although the same URL
+        answers 200 from the backend container.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce it
+      description: The shortest sequence you know of. The YAML of the dashboard (editor > YAML), redacted, helps a lot.
+      placeholder: |
+        1. Admin > Dashboards > New, then open the editor
+        2. Add a card with the URL https://... and tick "Check status"
+        3. Save and open the dashboard
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From `curl http://localhost:8080/api/health`. Say "dev" if you built the image yourself.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How it runs
+      options:
+        - docker compose (the shipped one)
+        - docker compose behind nginx or Traefik
+        - Podman / Quadlet
+        - Images, another orchestrator
+        - From source, for development
+    validations:
+      required: true
+
+  - type: dropdown
+    id: signin
+    attributes:
+      label: How people sign in
+      options:
+        - Local accounts only
+        - LDAP / Active Directory
+        - OpenID Connect
+        - Several of these
+        - Not relevant to this bug
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >
+        The relevant lines of `docker compose logs backend`, and the browser console if the problem is in
+        the interface. Remove any token, password or personal data first.
+      render: text
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else about the setup
+      description: >
+        Behind a reverse proxy, or the built-in TLS mode? Company certificate authorities? Two-step
+        verification? An air-gapped network? A dashboard imported from Homer? Say what is unusual.

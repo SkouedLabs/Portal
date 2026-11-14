@@ -114,7 +114,7 @@
             </div>
           </template>
           <template v-if="form.config.background.type === 'image'">
-            <ImageField v-model="form.config.background.image" label="Image" />
+            <ImageField v-model="form.config.background.image" label="Image" kind="background" hint="Any size: scaled to 2560 px and re-encoded to WebP on upload." />
             <div class="field">
               <label>Darken: {{ Math.round(form.config.background.overlay * 100) }}%</label>
               <input v-model.number="form.config.background.overlay" type="range" min="0" max="0.9" step="0.05" />

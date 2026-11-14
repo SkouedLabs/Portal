@@ -1,6 +1,8 @@
 # Portal-NG application, shared by the HTTP and built-in TLS modes (rendered by envsubst at startup).
 server_tokens off;
-client_max_body_size 8m;
+# Above MAX_UPLOAD_MB (10 by default): the backend is what enforces the limit and returns a
+# readable 413, rather than nginx cutting the connection.
+client_max_body_size 16m;
 
 # Real client IP from the reverse proxy (X-Forwarded-For), only from TRUSTED_PROXIES
 include /tmp/nginx/real-ip.inc;
@@ -20,6 +22,14 @@ location /api/ {
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection $connection_upgrade;
     proxy_read_timeout 60s;
+}
+
+# Images bundled with the frontend (logo, favicon): baked into the image, so they only ever
+# change with an upgrade.
+location ~* ^/(logo|favicon|apple-touch-icon)\.png$ {
+    include /etc/nginx/portal/headers.inc;
+    add_header Cache-Control "public, max-age=86400" always;
+    try_files $uri =404;
 }
 
 location /assets/ {

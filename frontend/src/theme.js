@@ -1,3 +1,7 @@
+// Logo shipped with the application, used wherever branding defines none.
+export const DEFAULT_LOGO = '/logo.png'
+export const DEFAULT_FAVICON = '/favicon.png'
+
 // Default colours taken from Homer
 export const DEFAULT_COLORS = {
   light: {

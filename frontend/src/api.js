@@ -46,9 +46,11 @@ export const api = {
   put: (url, body, opts) => request('PUT', url, body, opts),
   patch: (url, body, opts) => request('PATCH', url, body, opts),
   del: (url, opts) => request('DELETE', url, undefined, opts),
-  upload(file) {
+  upload(file, kind = '') {
     const fd = new FormData()
     fd.append('file', file)
+    // Lets the server bound the image to the size it will be drawn at ("icon" / "background")
+    if (kind) fd.append('kind', kind)
     return request('POST', '/api/uploads', fd)
   },
   logClick(payload) {

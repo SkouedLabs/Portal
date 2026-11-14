@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  push:
+    # `dev` is deliberately absent: publish.yml owns that branch and calls this workflow as its test
+    # gate. Triggering here as well would make two runs share the concurrency group below and cancel
+    # each other.
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # Called by publish.yml so a release is gated by exactly the same checks, not a second copy of them
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A new push to the same branch cancels the run in progress
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install exactly what the lock file says
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install the dependencies
+        run: pip install -r backend/requirements.txt
+
+      # There is no unit test suite yet. Importing the application is still a real gate: it runs
+      # every module, every router registration and every Pydantic model definition, which is where
+      # a typo in this codebase actually lands.
+      - name: The application imports and declares its routes
+        env:
+          DATA_DIR: ${{ runner.temp }}/portal-data
+          # Nothing listens there and nothing needs to: create_engine() does not connect, and
+          # the application only talks to the database from its lifespan handler. It has to be
+          # a PostgreSQL URL all the same — db.py sets pool options SQLite has no use for.
+          DATABASE_URL: postgresql+psycopg://portal:unused@127.0.0.1:5432/portal
+        run: |
+          mkdir -p "$DATA_DIR"
+          python - <<'PY'
+          from app.main import app
+          paths = sorted({r.path for r in app.routes if r.path.startswith("/api/")})
+          print(f"{len(paths)} API routes")
+          assert "/api/health" in paths, "the health endpoint the container probes is gone"
+          assert "/api/uploads" in paths
+          PY
+        working-directory: backend
+
+      - name: Uploaded images are still scaled down and re-encoded
+        run: |
+          python - <<'PY'
+          import io
+          from PIL import Image
+          from app.services import images
+
+          big = Image.new("RGB", (4000, 3000))
+          for x in range(0, 4000, 9):  # noise, so the encoder has real work to do
+              big.paste((x % 251, (x * 7) % 251, 90), (x, 0, x + 5, 3000))
+          raw = io.BytesIO(); big.save(raw, "PNG"); raw = raw.getvalue()
+
+          out, ext = images.optimize(raw, "png", "background")
+          assert ext == "webp" and len(out) < len(raw) / 4, (len(raw), len(out), ext)
+          assert max(Image.open(io.BytesIO(out)).size) <= 2560
+
+          out, ext = images.optimize(raw, "png", "icon")
+          assert max(Image.open(io.BytesIO(out)).size) <= 512
+
+          svg = b"<svg xmlns='http://www.w3.org/2000/svg'><rect width='8' height='8'/></svg>"
+          assert images.optimize(svg, "svg", "icon") == (svg, "svg"), "SVG must be stored as it is"
+          assert images.optimize(b"junk", "png", "icon") == (b"junk", "png"), "must never raise"
+          print("image pipeline ok")
+          PY
+        working-directory: backend
+
+  images:
+    name: Images build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Backend image
+        run: docker build -t portal-ng-backend ./backend
+
+      - name: Frontend image
+        run: docker build -t portal-ng-frontend ./frontend
+
+  stack:
+    name: The stack starts and answers
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      # The compose file is the documented way in, and it is what a release is: starting it for real
+      # catches what no unit test here would — a bad healthcheck, an nginx template that does not
+      # render, a read-only filesystem the application needs to write to.
+      - name: Start it the way the README says
+        run: docker compose up -d --build --wait --wait-timeout 300
+
+      - name: The portal and the API answer
+        run: |
+          set -eux
+          curl -fsS http://127.0.0.1:8080/api/health | tee /dev/stderr | grep -q '"status":"ok"'
+          curl -fsS http://127.0.0.1:8080/api/public/config | grep -q 'portal_name'
+          # The built frontend, not the Vite dev server
+          curl -fsS http://127.0.0.1:8080/ | grep -q '<div id="app">'
+          # The bundled logo and favicon are in the image
+          curl -fsS -o /dev/null -w '%{http_code} %{size_download}\n' http://127.0.0.1:8080/logo.png
+          curl -fsS -o /dev/null http://127.0.0.1:8080/favicon.png
+
+      - name: Signing in as the initial administrator works
+        run: |
+          set -eux
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/api/auth/login \
+            -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin"}')
+          # 200 (signed in) or 401/403 are all answers from a working application; 5xx is not.
+          test "$code" -lt 500
+
+      - name: Nothing crashed on the way
+        if: always()
+        run: |
+          docker compose ps
+          docker compose logs --tail=80
+          # A traceback in the backend log is a failure even when the endpoints answered
+          ! docker compose logs backend | grep -q 'Traceback (most recent call last)'
+
+      - name: Stop
+        if: always()
+        run: docker compose down -v

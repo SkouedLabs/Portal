@@ -3,7 +3,7 @@
     <label v-if="label">{{ label }}</label>
     <div class="image-field">
       <div class="thumb" :class="{ empty: !modelValue }">
-        <img v-if="modelValue" :src="modelValue" alt="" />
+        <img v-if="modelValue" :src="modelValue" alt="" decoding="async" />
         <i v-else class="fa-regular fa-image"></i>
       </div>
       <input
@@ -20,7 +20,8 @@
         <i class="fa-solid fa-xmark"></i>
       </button>
     </div>
-    <span v-if="hint" class="hint">{{ hint }}</span>
+    <span v-if="saved" class="hint saved"><i class="fa-solid fa-feather"></i> {{ saved }}</span>
+    <span v-else-if="hint" class="hint">{{ hint }}</span>
   </div>
 </template>
 
@@ -29,18 +30,36 @@ import { ref } from 'vue'
 import { api } from '../api'
 import { notify } from '../store'
 
-defineProps({ modelValue: { type: String, default: '' }, label: String, hint: String })
+const props = defineProps({
+  modelValue: { type: String, default: '' },
+  label: String,
+  hint: String,
+  // What the image is for. The server bounds and re-encodes it accordingly: "icon" for a logo,
+  // a favicon or a card, "background" for a full-page image.
+  kind: { type: String, default: 'icon' },
+})
 const emit = defineEmits(['update:modelValue'])
 const busy = ref(false)
+const saved = ref('')
+
+const kb = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`)
 
 async function upload(e) {
   const file = e.target.files?.[0]
   e.target.value = ''
   if (!file) return
   busy.value = true
+  saved.value = ''
   try {
-    const { url } = await api.upload(file)
+    const { url, bytes, format } = await api.upload(file, props.kind)
     emit('update:modelValue', url)
+    // Say what was stored rather than what was sent: a 3 MB photograph becoming a 180 KB WebP is
+    // the difference between a page that paints at once and one that does not.
+    if (bytes && bytes < file.size * 0.9) {
+      saved.value = `Compressed: ${kb(file.size)} → ${kb(bytes)} ${String(format).toUpperCase()}`
+    } else if (bytes) {
+      saved.value = `Stored: ${kb(bytes)} ${String(format).toUpperCase()}`
+    }
   } catch (err) {
     notify(err.message, 'error')
   } finally {
@@ -76,5 +95,8 @@ async function upload(e) {
 .disabled {
   pointer-events: none;
   opacity: 0.6;
+}
+.hint.saved {
+  color: var(--ui-ok, #2a9d5c);
 }
 </style>

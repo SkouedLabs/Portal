@@ -1,0 +1,124 @@
+name: Publish images
+on:
+  push:
+    branches: [dev]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # Pushing to ghcr.io with the token the run already has: no secret to create for it
+  packages: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  tests:
+    name: Checks
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: ${{ matrix.name }} image
+    runs-on: ubuntu-latest
+    needs: [tests]
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            context: ./backend
+          - name: frontend
+            context: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # The account signs in; the images live under the organisation (DOCKERHUB_NAMESPACE below),
+      # so the token needs write access to that organisation's repositories. The username may be a
+      # variable or a secret depending on where it was put; the token is a secret.
+      - name: Sign in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Sign in to GitHub Packages
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Work out the tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ vars.DOCKERHUB_NAMESPACE || 'skouedlabs' }}/portal-ng-${{ matrix.name }}
+            ghcr.io/skouedlabs/portal-ng-${{ matrix.name }}
+          tags: |
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=sha,prefix=dev-,format=short,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          # latest=auto: set by a release tag, and never by a pre-release such as v1.2.0-rc1
+          flavor: latest=auto
+
+      # workflow_dispatch from a branch other than dev computes no tag at all; say so instead of
+      # letting docker fail on an empty tag list
+      - name: There has to be something to tag
+        run: |
+          if [ -z "${{ steps.meta.outputs.tags }}" ]; then
+            echo "::error::nothing to publish from ${{ github.ref }}. Push to dev for the dev tag, or push a v* tag for a release."
+            exit 1
+          fi
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # The version the application reports, stamped into the backend image from the tag being
+          # published (`1.2.0` for v1.2.0, `dev` on the dev branch). The frontend has no such argument.
+          build-args: ${{ matrix.name == 'backend' && format('PORTAL_NG_VERSION={0}', steps.meta.outputs.version) || '' }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          # The layer cache lives with the run, so a dev push rebuilds only what changed
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          # One architecture. amd64 is what the deployment documentation describes, and arm64
+          # through QEMU roughly triples the build: add it here when something needs it.
+          platforms: linux/amd64
+
+      - name: What was published
+        run: |
+          echo "### ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  # The Docker Hub page of each image: the README, with its relative links made absolute, under a
+  # few lines saying which half of the pair it is. A description belongs to a repository and not to
+  # a tag, so this runs on a release only — a dev build would keep rewriting it with the same thing.
+  description:
+    name: Docker Hub descriptions
+    runs-on: ubuntu-latest
+    needs: [publish]
+    if: github.ref_type == 'tag'
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Push the README to both images
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE || 'skouedlabs' }}
+        run: |
+          sh scripts/dockerhub-description.sh backend
+          sh scripts/dockerhub-description.sh frontend

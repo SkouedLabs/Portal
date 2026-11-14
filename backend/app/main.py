@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from sqlalchemy import select, text
 
+from . import __version__
 from .config import get_settings
 from .db import Base, SessionLocal, engine
 from .models import Dashboard, User
@@ -122,7 +123,8 @@ async def security_headers(request: Request, call_next):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    # Also the container health check, so it stays free of any database access.
+    return {"status": "ok", "version": __version__}
 
 
 for r in (auth.router, account.router, public.router, dashboards.router, status.router, admin.router, logs.router):

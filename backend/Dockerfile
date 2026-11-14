@@ -12,6 +12,10 @@ WORKDIR /srv
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+# Stamped by the publish workflow from the git tag; "dev" for a build from a checkout.
+ARG PORTAL_NG_VERSION=dev
+ENV PORTAL_NG_VERSION=${PORTAL_NG_VERSION}
+
 COPY app ./app
 
 RUN useradd --system --uid 10001 --home /srv portal \

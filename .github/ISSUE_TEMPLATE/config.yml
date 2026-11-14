@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/SkouedLabs/Portal/security/advisories/new
+    about: Report it privately. Please do not open a public issue.
+  - name: Question about using or operating Portal-NG
+    url: https://github.com/SkouedLabs/Portal/discussions
+    about: Ask in Discussions. The documentation (docs/) covers most of it.

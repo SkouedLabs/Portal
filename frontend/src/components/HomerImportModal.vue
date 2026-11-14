@@ -210,7 +210,7 @@ async function analyse() {
       if (p.err) return { key: p.file, file: p.file, include: false, err: true, homer: false, title: p.name, slug: 'x', visibility: 'restricted', refs: [], note: `Not imported: ${p.err}` }
       const isPage = p !== main
       const src = isPage ? mergeHomerPage(main.src, p.src) : p.src
-      const refs = homerImageRefs(src).map((ref) => ({ ref, file: matchImageFile(ref, images) }))
+      const refs = homerImageRefs(src).map(({ ref, kind }) => ({ ref, kind, file: matchImageFile(ref, images) }))
       const conv = convertHomer(src)
       const looksHomer = Array.isArray(p.src.services) || Array.isArray(p.src.links)
       const title = isPage && p.src.title === undefined ? `${conv.title} — ${p.name}` : conv.title
@@ -239,12 +239,17 @@ async function runImport() {
   const chosen = drafts.value.filter((d) => d.include)
   // 1. Upload each referenced image once
   const urlOf = new Map()
-  const needed = [...new Set(chosen.flatMap((d) => d.refs.filter((r) => r.file).map((r) => r.file)))]
+  // file -> what it is used for; a file used as a background anywhere keeps the larger bound
+  const kindOf = new Map()
+  for (const r of chosen.flatMap((d) => d.refs)) {
+    if (r.file && (r.kind === 'background' || !kindOf.has(r.file))) kindOf.set(r.file, r.kind || 'icon')
+  }
+  const needed = [...kindOf.keys()]
   uploaded.value = 0
   for (const [i, f] of needed.entries()) {
     progress.value = `Uploading images… ${i + 1} / ${needed.length}`
     try {
-      urlOf.set(f, (await api.upload(f)).url)
+      urlOf.set(f, (await api.upload(f, kindOf.get(f))).url)
       uploaded.value++
     } catch {
       /* reported below as a missing image */

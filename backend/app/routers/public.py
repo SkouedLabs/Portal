@@ -1,7 +1,7 @@
 import os
 import re
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -9,7 +9,7 @@ from ..config import get_settings
 from ..db import get_db
 from ..deps import AuthContext, is_any_editor, require_user
 from ..security import new_token
-from ..services import audit
+from ..services import audit, images
 from ..services.settings import get_section, local_login_state
 
 router = APIRouter(prefix="/api", tags=["public"])
@@ -59,6 +59,9 @@ def public_config(db: Session = Depends(get_db)):
 async def upload(
     request: Request,
     file: UploadFile = File(...),
+    # What the image is for, so it can be bounded to the size it will actually be drawn at:
+    # "icon" (logo, favicon, card) or "background". Anything else gets the middle-ground bound.
+    kind: str = Form(""),
     auth: AuthContext = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -72,12 +75,17 @@ async def upload(
     ext = _sniff(data[:512])
     if ext is None:
         raise HTTPException(415, "Unsupported format (PNG, JPEG, GIF, WebP, ICO, SVG)")
+    # Scaled down and re-encoded before it is written: what lands in the volume is what the
+    # browser will download, on every view, for as long as it is referenced.
+    data, ext = images.optimize(data, ext, kind)
     os.makedirs(settings.upload_dir, exist_ok=True)
     name = f"{new_token(24)}.{ext}"
     with open(os.path.join(settings.upload_dir, name), "wb") as fh:
         fh.write(data)
     audit.record(db, category="admin", event="upload", request=request, user=auth.user, target=name, label=file.filename)
-    return {"url": f"/api/uploads/{name}"}
+    # "bytes" and "format" are what was actually stored, so the interface can show what the
+    # re-encoding saved rather than leaving the uploader guessing.
+    return {"url": f"/api/uploads/{name}", "bytes": len(data), "format": ext}
 
 
 @router.get("/uploads/{name}")

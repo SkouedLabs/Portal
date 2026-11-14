@@ -5,7 +5,7 @@ After=portal-ng-backend.service
 
 [Container]
 ContainerName=portal-ng-frontend
-Image=emeryn/portal-ng-frontend:latest
+Image=docker.io/skouedlabs/portal-ng-frontend:latest
 Network=portal-ng-internal.network
 Network=portal-ng.network
 PublishPort=127.0.0.1:8080:8080

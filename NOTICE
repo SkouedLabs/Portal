@@ -1,0 +1,34 @@
+Portal-NG
+Copyright 2026 SkouedLabs
+
+This product includes software developed by the Portal-NG contributors.
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+================================================================================
+Third-party code included in this repository
+================================================================================
+
+No third-party code is vendored here: nothing is copied in. Every dependency is
+declared, fetched at build time, and listed with its version in:
+
+  backend/requirements.txt          (Python)
+  frontend/package-lock.json        (JavaScript)
+
+The licences of those dependencies are their own.
+
+Two of them are worth naming, because they end up inside the frontend image and
+are served to every browser:
+
+  Font Awesome Free (icons and fonts)   CC BY 4.0 / SIL OFL 1.1 / MIT
+                                        https://fontawesome.com/license/free
+
+The icons are bundled deliberately rather than loaded from a CDN, so that the
+portal works with no internet access at all.
+
+================================================================================
+Inspiration
+================================================================================
+
+Portal-NG is inspired by Homer (https://github.com/bastienwirtz/homer, Apache
+License 2.0) and reads and writes its configuration format, so that an existing
+Homer instance can be imported. No Homer code is used.

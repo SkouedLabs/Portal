@@ -5,7 +5,7 @@ After=portal-ng-db.service
 
 [Container]
 ContainerName=portal-ng-backend
-Image=emeryn/portal-ng-backend:latest
+Image=docker.io/skouedlabs/portal-ng-backend:latest
 Network=portal-ng-internal.network
 Network=portal-ng.network
 Volume=portal-ng-data.volume:/data

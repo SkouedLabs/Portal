@@ -72,17 +72,21 @@ export function mergeHomerPage(base, page) {
 
 const cssUrl = (v) => str(v).replace(/^url\(\s*["']?/i, '').replace(/["']?\s*\)$/, '')
 
-/** Local (non http) image references of a Homer config: they must be uploaded to the portal. */
+/** Local (non http) image references of a Homer config: they must be uploaded to the portal.
+ *  Each one carries what it is for ("icon" or "background"), so the upload can be bounded to the
+ *  size it will be drawn at — a page background must not be shrunk to the size of a card logo. */
 export function homerImageRefs(src) {
-  const refs = new Set()
-  const add = (v) => {
+  const refs = new Map()
+  const add = (v, kind) => {
     const s = str(v)
-    if (s && !isRemote(s) && !s.startsWith('data:')) refs.add(s)
+    if (!s || isRemote(s) || s.startsWith('data:')) return
+    // The same file can be both a logo and a background: the larger bound wins.
+    if (kind === 'background' || !refs.has(s)) refs.set(s, kind)
   }
-  add(src.logo)
-  for (const t of ['light', 'dark']) add(cssUrl(src.colors?.[t]?.['background-image']))
-  for (const s of src.services || []) for (const i of s?.items || []) add(i?.logo)
-  return [...refs]
+  add(src.logo, 'icon')
+  for (const t of ['light', 'dark']) add(cssUrl(src.colors?.[t]?.['background-image']), 'background')
+  for (const s of src.services || []) for (const i of s?.items || []) add(i?.logo, 'icon')
+  return [...refs].map(([ref, kind]) => ({ ref, kind }))
 }
 
 /** Find the uploaded file matching a Homer path ("assets/tools/x.png", "/logo.png", "x.png"). */

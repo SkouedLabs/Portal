@@ -106,6 +106,6 @@ def get_settings() -> Settings:
         # Default: Secure cookies when the portal is served over HTTPS (by the reverse proxy)
         cookie_secure=_bool("COOKIE_SECURE", public_url.lower().startswith("https://")),
         data_dir=data_dir,
-        max_upload_mb=int(os.getenv("MAX_UPLOAD_MB") or "5"),
+        max_upload_mb=int(os.getenv("MAX_UPLOAD_MB") or "10"),
         force_local_login=_bool("FORCE_LOCAL_LOGIN", False),
     )

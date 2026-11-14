@@ -7,8 +7,7 @@
       <header v-if="cfg.show_header" class="portal-header">
         <div class="portal-container header-line">
           <div class="logo">
-            <img v-if="logoSrc" :src="logoSrc" alt="" />
-            <i v-else class="fa-solid fa-house-chimney"></i>
+            <img :src="logoSrc" alt="" decoding="async" />
           </div>
           <div class="titles">
             <span class="headline">{{ dashboard.subtitle }}</span>
@@ -143,7 +142,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api } from '../api'
 import { prefersDark, state, storage } from '../store'
-import { DEFAULT_COLORS, emptyConfig } from '../theme'
+import { DEFAULT_COLORS, DEFAULT_LOGO, emptyConfig } from '../theme'
 
 const props = defineProps({
   dashboard: { type: Object, required: true },
@@ -183,7 +182,7 @@ const themeIcon = computed(
   () => ({ light: 'fa-solid fa-sun', dark: 'fa-solid fa-moon', auto: 'fa-solid fa-circle-half-stroke' })[themeMode.value],
 )
 
-const logoSrc = computed(() => props.dashboard.logo || state.config?.branding?.logo || '')
+const logoSrc = computed(() => props.dashboard.logo || state.config?.branding?.logo || DEFAULT_LOGO)
 const footerText = computed(() => cfg.value.footer || state.config?.branding?.footer || '')
 
 const cssVars = computed(() => {

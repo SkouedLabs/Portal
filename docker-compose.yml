@@ -1,8 +1,10 @@
-# Works out of the box: `docker compose up -d --build`, then open http://localhost:8080
+# Works out of the box: `docker compose up -d`, then open http://localhost:8080
+# That pulls the published images; add --build to build from this checkout instead.
 # Production: put your reverse proxy (nginx on the host, Traefik…) in front for TLS and set
-# PUBLIC_URL to the https:// address users type. See example/ and the README.
-# Every setting below has a default; override any of them in a .env file (see .env.example).
-# Offline / air-gapped hosts: see "Offline installation" in the README (docker save / load, --no-build).
+# PUBLIC_URL to the https:// address users type. See example/ and docs/deployment.md.
+# Every setting below has a default; override any of them in a .env file (see .env.example),
+# and every one of them is documented in docs/configuration.md.
+# Offline / air-gapped hosts: docs/install.md#offline-air-gapped-installation (docker save / load).
 name: portal-ng
 
 # Hardening shared by every container: non-root user (set per service and in the images),
@@ -39,7 +41,7 @@ services:
   backend:
     <<: *hardening
     build: ./backend
-    image: emeryn/portal-ng-backend:latest
+    image: ${PORTAL_NG_IMAGE_NAMESPACE:-skouedlabs}/portal-ng-backend:${PORTAL_NG_VERSION:-latest}
     # Non-root user defined in the image (uid 10001)
     user: "10001:10001"
     restart: unless-stopped
@@ -61,7 +63,9 @@ services:
       FORCE_LOCAL_LOGIN: ${FORCE_LOCAL_LOGIN:-false}
       # Empty = automatic: Secure cookies when PUBLIC_URL is https://
       COOKIE_SECURE: ${COOKIE_SECURE:-}
-      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-5}
+      # Size of the file as it is *sent*. It is scaled down and re-encoded to WebP before being
+      # stored, so what the browsers download afterwards is a fraction of this.
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
     volumes:
       - app-data:/data
     tmpfs:
@@ -78,7 +82,7 @@ services:
   frontend:
     <<: *hardening
     build: ./frontend
-    image: emeryn/portal-ng-frontend:latest
+    image: ${PORTAL_NG_IMAGE_NAMESPACE:-skouedlabs}/portal-ng-frontend:${PORTAL_NG_VERSION:-latest}
     # Unprivileged nginx (uid 101): no root master process
     user: "101:101"
     restart: unless-stopped

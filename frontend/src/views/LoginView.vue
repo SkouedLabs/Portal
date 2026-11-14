@@ -5,8 +5,7 @@
 
     <div class="login-card" :class="{ wide: step === 'enroll' }">
       <div class="brand">
-        <img v-if="branding.logo" :src="branding.logo" alt="" class="logo" />
-        <div v-else class="logo-fallback"><i class="fa-solid fa-house-chimney"></i></div>
+        <img :src="branding.logo || DEFAULT_LOGO" alt="" class="logo" />
         <h1>{{ branding.portal_name }}</h1>
         <p v-if="branding.subtitle && step === 'password'" class="muted">{{ branding.subtitle }}</p>
       </div>
@@ -99,7 +98,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api'
 import MfaSetup from '../components/MfaSetup.vue'
 import { loadMe, state } from '../store'
-import { loginBackground } from '../theme'
+import { DEFAULT_LOGO, loginBackground } from '../theme'
 import { getAssertion, webauthnSupported } from '../webauthn'
 
 const route = useRoute()
@@ -251,18 +250,6 @@ onMounted(() => {
   max-width: 200px;
   object-fit: contain;
   margin-bottom: 12px;
-}
-.logo-fallback {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 12px;
-  border-radius: 16px;
-  background: var(--brand);
-  color: #fff;
-  font-size: 1.8rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 .brand h1 {
   font-size: 1.45rem;

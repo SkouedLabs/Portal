@@ -1,5 +1,6 @@
 import { reactive } from 'vue'
 import { api, setCsrf } from './api'
+import { DEFAULT_FAVICON } from './theme'
 
 export const state = reactive({
   config: null, // public configuration (branding + sign-in methods)
@@ -23,7 +24,7 @@ export function applyBranding() {
   if (!b) return
   document.title = b.portal_name || 'Portal-NG'
   const fav = document.getElementById('favicon')
-  if (fav) fav.href = b.favicon || b.logo || '/favicon.svg'
+  if (fav) fav.href = b.favicon || b.logo || DEFAULT_FAVICON
   document.documentElement.style.setProperty('--brand', b.primary_color || '#3367d6')
 }
 
