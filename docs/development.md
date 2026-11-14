@@ -45,23 +45,38 @@ every release:
 
 | Job | What it proves |
 |---|---|
-| **Frontend build** | `npm ci` against the lock file, then `npm run build`. |
+| **Frontend tests and build** | `npm ci` against the lock file, then `npm test` and `npm run build`. |
 | **Backend checks** | The application imports — every module, every router, every Pydantic model — and the image pipeline still scales down, re-encodes, and leaves SVG and unreadable files alone. |
 | **Images build** | Both Dockerfiles build. |
 | **The stack starts and answers** | `docker compose up --wait`, then the health endpoint, the public configuration, the built frontend, the bundled logo, and a sign-in attempt. It fails on a traceback in the backend log even if the endpoints answered. |
 
-Run the two that need no runner locally:
+Run them locally:
 
 ```bash
-make typecheck    # builds the frontend in a node:22-alpine container
+make test         # the frontend test suite, in a node:24-alpine container
+make typecheck    # builds the frontend in the same way
 make smoke        # starts the stack and checks it answers, then tears it down
 ```
 
-There is **no unit test suite yet**. That is the honest state of this repository, and the reason the
-stack-level check above exists: starting the real compose file catches what matters most here — a bad
-health check, an nginx template that does not render, a read-only filesystem the application needs to
-write to. A contribution that adds a test suite is very welcome; see
-[CONTRIBUTING.md](../CONTRIBUTING.md).
+### The test suite
+
+`frontend/test/` holds it, and `npm test` runs it. There is no framework: `test/run.mjs` uses esbuild to
+bundle each case — which is what makes the application's own extensionless imports resolve the way Vite
+resolves them — jsdom stands in for the browser, and a failed assertion is a non-zero exit.
+
+| File | What it covers |
+|---|---|
+| `test/homer.mjs` | Parsing a Homer `config.yml`, finding its local images and what each one is for, converting it to a dashboard, exporting it back and re-parsing the result. |
+| `test/router.mjs` | The guard from `src/router.js`: an anonymous visitor redirected to the sign-in page with `?next=`, a non-administrator bounced off `/admin`, nested routes, route params, the catch-all, `resolve()` and `replace()`. |
+
+Both exist because they are what a dependency bump breaks: these cases caught js-yaml dropping its
+default export, and they are what made a vue-router major safe to take.
+
+On the **Python side there is no suite yet**, which is the honest state of this repository and a good
+place to contribute. The backend job builds the OpenAPI schema — which runs every router and every model
+— and exercises the image pipeline; the stack job starts the real compose file, which catches a bad
+health check, an nginx template that does not render, or a read-only filesystem the application needs to
+write to. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Conventions
 

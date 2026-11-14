@@ -18,8 +18,9 @@ browser ──▶ frontend (nginx, uid 101) ──▶ backend (uid 10001) ──
   `/api/` to the backend. It is the only container with a published port, and it publishes plain HTTP on
   `127.0.0.1` by default. It sends the security headers and resolves the real client IP from
   `X-Forwarded-For`.
-- **backend** — FastAPI with SQLAlchemy. It holds every decision: who may see what, what the branding is,
-  and it is what probes the applications whose status is checked.
+- **backend** — FastAPI with SQLAlchemy, on Alpine. It holds every decision: who may see what, what the
+  branding is, and it is what probes the applications whose status is checked. Alpine is not only for the
+  size: its OpenSSL 3.5 is what gives the outgoing connections their post-quantum key exchange.
 - **db** — PostgreSQL, on the internal network only. It has no published port and no route to the outside.
 
 The `internal` network is `internal: true`: the database cannot reach, and cannot be reached from,

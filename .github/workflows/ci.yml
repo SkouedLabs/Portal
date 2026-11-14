@@ -21,20 +21,26 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend build
-    runs-on: ubuntu-latest
+    name: Frontend tests and build
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install exactly what the lock file says
         run: npm ci
+        working-directory: frontend
+
+      # The suite covers what a dependency bump actually breaks here: the Homer import/export
+      # round-trip, and routing. See frontend/test/.
+      - name: Tests
+        run: npm test
         working-directory: frontend
 
       - name: Build
@@ -43,19 +49,19 @@ jobs:
 
   backend:
     name: Backend checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install the dependencies
         run: pip install -r backend/requirements.txt
 
-      # There is no unit test suite yet. Importing the application is still a real gate: it runs
+      # There is no unit test suite yet. Building the OpenAPI schema is still a real gate: it runs
       # every module, every router registration and every Pydantic model definition, which is where
       # a typo in this codebase actually lands.
       - name: The application imports and declares its routes
@@ -69,10 +75,15 @@ jobs:
           mkdir -p "$DATA_DIR"
           python - <<'PY'
           from app.main import app
-          paths = sorted({r.path for r in app.routes if r.path.startswith("/api/")})
+
+          # The schema, not app.routes: include_router() wraps each router in an object whose shape
+          # is FastAPI's own business and has changed between versions (it carried no .path at all
+          # in 0.162). openapi() is the published contract, and generating it exercises every
+          # response model on the way, which walking the route table would not.
+          paths = sorted(p for p in app.openapi()["paths"] if p.startswith("/api/"))
           print(f"{len(paths)} API routes")
           assert "/api/health" in paths, "the health endpoint the container probes is gone"
-          assert "/api/uploads" in paths
+          assert "/api/uploads" in paths, "the upload endpoint is gone"
           PY
         working-directory: backend
 
@@ -83,18 +94,32 @@ jobs:
           from PIL import Image
           from app.services import images
 
-          big = Image.new("RGB", (4000, 3000))
-          for x in range(0, 4000, 9):  # noise, so the encoder has real work to do
-              big.paste((x % 251, (x * 7) % 251, 90), (x, 0, x + 5, 3000))
-          raw = io.BytesIO(); big.save(raw, "PNG"); raw = raw.getvalue()
+          # Noise is the honest stand-in for a photograph: PNG cannot compress it, which is exactly
+          # the case the re-encoding exists for. Stripes or flat colour would compress so well as
+          # PNG that the comparison below would prove nothing.
+          noise = Image.merge("RGB", [Image.effect_noise((3000, 2000), 60) for _ in range(3)])
+          buf = io.BytesIO(); noise.save(buf, "PNG"); raw = buf.getvalue()
 
+          # Bounded to the size it will be drawn at, and markedly smaller. The measured ratios are
+          # about 0.14 and 0.003; the thresholds leave room for an encoder changing its mind.
           out, ext = images.optimize(raw, "png", "background")
-          assert ext == "webp" and len(out) < len(raw) / 4, (len(raw), len(out), ext)
-          assert max(Image.open(io.BytesIO(out)).size) <= 2560
+          assert ext == "webp", ext
+          assert max(Image.open(io.BytesIO(out)).size) <= 2560, Image.open(io.BytesIO(out)).size
+          assert len(out) < len(raw) * 0.5, (len(raw), len(out))
 
           out, ext = images.optimize(raw, "png", "icon")
-          assert max(Image.open(io.BytesIO(out)).size) <= 512
+          assert ext == "webp", ext
+          assert max(Image.open(io.BytesIO(out)).size) <= 512, Image.open(io.BytesIO(out)).size
+          assert len(out) < len(raw) * 0.1, (len(raw), len(out))
 
+          # Transparency has to survive, or every logo on a dashboard gains a black box
+          rgba = Image.new("RGBA", (800, 800), (0, 0, 0, 0))
+          rgba.paste((255, 0, 0, 255), (100, 100, 400, 400))
+          buf = io.BytesIO(); rgba.save(buf, "PNG")
+          out, _ = images.optimize(buf.getvalue(), "png", "icon")
+          assert Image.open(io.BytesIO(out)).convert("RGBA").getpixel((2, 2))[3] == 0, "alpha lost"
+
+          # And what must be left exactly as it arrived
           svg = b"<svg xmlns='http://www.w3.org/2000/svg'><rect width='8' height='8'/></svg>"
           assert images.optimize(svg, "svg", "icon") == (svg, "svg"), "SVG must be stored as it is"
           assert images.optimize(b"junk", "png", "icon") == (b"junk", "png"), "must never raise"
@@ -104,10 +129,10 @@ jobs:
 
   images:
     name: Images build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Backend image
         run: docker build -t portal-ng-backend ./backend
@@ -117,10 +142,10 @@ jobs:
 
   stack:
     name: The stack starts and answers
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The compose file is the documented way in, and it is what a release is: starting it for real
       # catches what no unit test here would — a bad healthcheck, an nginx template that does not

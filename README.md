@@ -4,8 +4,8 @@
 
 [![CI](https://github.com/SkouedLabs/Portal/actions/workflows/ci.yml/badge.svg)](https://github.com/SkouedLabs/Portal/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](backend/requirements.txt)
-[![Node 22](https://img.shields.io/badge/node-22-blue.svg)](frontend/package.json)
+[![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](backend/requirements.txt)
+[![Node 24](https://img.shields.io/badge/node-24-blue.svg)](frontend/package.json)
 [![Documentation](https://img.shields.io/badge/docs-docs%2FREADME.md-informational.svg)](docs/README.md)
 
 A **company portal**: one page where everyone finds the applications they are entitled to, inspired by

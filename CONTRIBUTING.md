@@ -20,6 +20,7 @@ Docker is the only prerequisite; nothing is installed on the host.
 
 ```bash
 docker compose up -d --build     # or: make up      -> http://localhost:8080
+make test                        # frontend test suite
 make typecheck                   # build the frontend
 make smoke                       # start the stack and check that it answers
 ```
@@ -50,15 +51,18 @@ Running the backend or the frontend directly on your machine is described in
 
 ## Tests
 
-There is **no unit test suite yet** — that is the honest state of this repository, and it is a good place
-to contribute. In the meantime, CI starts the real compose file and checks that the stack answers, which
-is what catches most of what breaks here.
+The suite is small and is in `frontend/test/` (`npm test`, or `make test`). It covers the Homer
+import/export round-trip and the routing, which is what a dependency bump actually breaks here. There is
+no framework: esbuild bundles each case so the application's own imports resolve the way Vite resolves
+them, jsdom stands in for the browser, and a failed assertion is a non-zero exit.
 
-If you add behaviour that can be tested without a browser — the image pipeline, the Homer conversion, the
-rights computation — adding the test with it is very welcome, and starting the suite is more welcome
-still.
+On the Python side there is **no suite yet**, and that is a good place to contribute. CI checks that the
+application builds its OpenAPI schema — which exercises every router and every model — and that the image
+pipeline still scales down, re-encodes and leaves SVG alone.
 
-Whatever you change, say in the pull request **what you did in the running application** to check it.
+A behaviour that can be tested without a browser — the image pipeline, the Homer conversion, the rights
+computation — should come with its test. Whatever you change, also say in the pull request **what you did
+in the running application** to check it.
 
 ## Documentation
 

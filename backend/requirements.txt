@@ -1,16 +1,29 @@
-fastapi>=0.115,<1
-uvicorn[standard]>=0.32
-sqlalchemy>=2.0.36,<2.1
-psycopg[binary]>=3.2
-pydantic>=2.9,<3
-argon2-cffi>=23.1
-cryptography>=44
-PyJWT[crypto]>=2.10
-httpx>=0.28
+# Floors are the versions this release was built and checked against; the upper bounds are the
+# majors known to break. Nothing is pinned to an exact version, so a rebuild picks up security
+# fixes on its own — the cost is that a build is not bit-for-bit reproducible, and that a new
+# minor can change behaviour without a commit here. See docs/development.md.
+
+fastapi>=0.162,<1
+uvicorn[standard]>=0.54,<1
+# FastAPI's own dependency, named here because the application's shape depends on it: 1.0 moved
+# enough internals that it is worth being deliberate about the next major.
+starlette>=1.10,<2
+
+sqlalchemy>=2.0.57,<2.1
+psycopg[binary]>=3.3,<4
+pydantic>=2.14,<3
+
+argon2-cffi>=25.1
+cryptography>=50
+PyJWT[crypto]>=2.15,<3
+httpx>=0.28.1,<1
+
 ldap3>=2.9.1
-python-multipart>=0.0.18
+python-multipart>=0.0.33
+
 # Uploaded images are scaled down and re-encoded to WebP (app/services/images.py)
-pillow>=11.0
-webauthn>=2.2,<4
-pyotp>=2.9
-segno>=1.6
+pillow>=13.0,<14
+
+webauthn>=3.0,<4
+pyotp>=2.10
+segno>=1.6.6

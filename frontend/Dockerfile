@@ -1,5 +1,5 @@
 # ---- Build ----
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
@@ -10,7 +10,7 @@ RUN npm run build
 # Unprivileged nginx (uid 101, no root master process).
 # Default: plain HTTP on 8080 behind your reverse proxy (nginx, Traefik…), which handles TLS.
 # Optional: FRONTEND_TLS=true to terminate TLS here (OpenSSL >= 3.5: X25519MLKEM768).
-FROM nginxinc/nginx-unprivileged:1.29-alpine
+FROM nginxinc/nginx-unprivileged:1.30-alpine
 
 USER root
 RUN apk add --no-cache openssl \

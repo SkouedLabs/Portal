@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import yaml from 'js-yaml'
+import { load as parseYaml } from 'js-yaml'
 
 const require = createRequire(import.meta.url)
 
@@ -17,7 +17,7 @@ function fontAwesomeIndex() {
     load(resolved) {
       if (resolved !== '\0' + id) return null
       const root = dirname(require.resolve('@fortawesome/fontawesome-free/package.json'))
-      const meta = yaml.load(readFileSync(join(root, 'metadata', 'icons.yml'), 'utf8'))
+      const meta = parseYaml(readFileSync(join(root, 'metadata', 'icons.yml'), 'utf8'))
       // [name, label, styles ("s" solid, "r" regular, "b" brands), search terms]
       const icons = Object.entries(meta)
         .map(([name, m]) => [

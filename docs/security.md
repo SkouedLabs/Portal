@@ -17,6 +17,10 @@ What the application does on its own, and what is left to you. To **report a vul
 All of them also run with `no-new-privileges`. The Quadlet units in `example/podman/` apply the same
 settings (`User=`, `ReadOnly=`, `DropCapability=all`, `NoNewPrivileges=`).
 
+All three are **Alpine-based**, which keeps them small — the backend is about 255 MB — and keeps the
+number of packages that could need a security update low. The backend installs its Python dependencies
+from musl wheels only (`--only-binary`), so no compiler is ever present in the image.
+
 Files you mount have to be readable by these users — certificates for the Traefik example (uid 65532), or
 for the built-in TLS mode (uid 101).
 
@@ -86,7 +90,7 @@ symmetric and hash-based primitives, against which a quantum computer only gains
 |---|---|
 | Browser ↔ reverse proxy | TLS 1.3, hybrid key exchange **X25519MLKEM768** (ML-KEM-768, FIPS 203) with the provided examples: nginx with OpenSSL ≥ 3.5, Traefik ≥ 3 (Go ≥ 1.24). Same in the optional built-in TLS mode |
 | Reverse proxy → frontend | Plain HTTP on the same host: loopback `127.0.0.1` or a Docker network, never the LAN |
-| Backend → LDAPS / IdP / status checks | OpenSSL 3.5: X25519MLKEM768 offered by default, used when the remote server supports it |
+| Backend → LDAPS / IdP / status checks | The backend image is Alpine, whose OpenSSL 3.5 offers X25519MLKEM768 by default; it is used when the remote server supports it |
 | Local passwords | Argon2id (RFC 9106), 64 MiB, t=3, p=4, automatic rehash |
 | Session, CSRF, MFA challenge tokens, recovery codes | 256-bit random values (80-bit for recovery codes). Only SHA3-256 digests are stored |
 | Secrets at rest (LDAP bind password, OIDC client secret, TOTP secrets) | AES-256-GCM, key derived from the master key with HKDF-SHA3-512 |

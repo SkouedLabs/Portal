@@ -7,7 +7,7 @@
 //   convertHomer(src, { images, pageLinks }) -> { title, subtitle, logo, config, warnings, stats }
 // Values are validated with the same rules as the server, so a converted dashboard always saves:
 // what cannot be converted is dropped and reported in `warnings`.
-import yaml from 'js-yaml'
+import { JSON_SCHEMA, dump, load } from 'js-yaml'
 import { emptyConfig, uid } from './theme'
 
 const COLOR_KEYS = {
@@ -54,7 +54,7 @@ const stripHtml = (v) =>
 const isRemote = (u) => /^https?:\/\//i.test(u)
 
 export function parseHomer(text) {
-  const src = yaml.load(text, { schema: yaml.JSON_SCHEMA })
+  const src = load(text, { schema: JSON_SCHEMA })
   if (!src || typeof src !== 'object' || Array.isArray(src)) throw new Error('This file is not a Homer configuration (YAML object expected)')
   return src
 }
@@ -283,5 +283,5 @@ export function exportHomer(d) {
     links: c.links?.length ? c.links.map(clean) : undefined,
     services: c.sections.map((s) => ({ ...clean({ name: s.name, icon: s.icon }), items: s.items.map(item) })),
   }
-  return yaml.dump(JSON.parse(JSON.stringify(out)), { lineWidth: 120, noRefs: true })
+  return dump(JSON.parse(JSON.stringify(out)), { lineWidth: 120, noRefs: true })
 }

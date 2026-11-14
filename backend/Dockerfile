@@ -1,6 +1,10 @@
-# Debian trixie ships OpenSSL 3.5 => hybrid TLS 1.3 X25519MLKEM768 for
-# outgoing connections (LDAPS, OIDC provider) when the remote server supports it.
-FROM python:3.13-slim-trixie
+# Alpine, for a 255 MB image instead of 364 MB. The reason the Debian image was here in the first
+# place was OpenSSL 3.5 — hybrid TLS 1.3 X25519MLKEM768 for outgoing connections (LDAPS, OIDC
+# provider, status checks) when the remote server supports it. Alpine 3.24 carries OpenSSL 3.5.9,
+# newer than Debian trixie's 3.5.7, and was checked to negotiate X25519MLKEM768 against a server
+# that offers it, so nothing is given up by being smaller. If a future base drops below OpenSSL
+# 3.5, the post-quantum claim in docs/security.md goes with it.
+FROM python:3.14-alpine
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -10,7 +14,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /srv
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+# --only-binary: every dependency publishes a musllinux wheel, so nothing is compiled here and no
+# build toolchain is ever installed. If that stops being true for one of them, the build fails
+# loudly rather than quietly pulling in gcc and tripling the image.
+RUN pip install --only-binary=:all: -r requirements.txt
 
 # Stamped by the publish workflow from the git tag; "dev" for a build from a checkout.
 ARG PORTAL_NG_VERSION=dev
@@ -18,7 +25,9 @@ ENV PORTAL_NG_VERSION=${PORTAL_NG_VERSION}
 
 COPY app ./app
 
-RUN useradd --system --uid 10001 --home /srv portal \
+# busybox adduser rather than shadow's useradd: same uid, one less package in the image.
+RUN addgroup -S -g 10001 portal \
+    && adduser -S -D -H -u 10001 -G portal -h /srv portal \
     && mkdir -p /data/uploads && chown -R portal:portal /data
 USER 10001:10001
 

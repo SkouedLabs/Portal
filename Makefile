@@ -2,7 +2,7 @@
 # make is a convenience, never a requirement: every target is one command, shown in its recipe, and
 # "docker compose up -d" alone is enough to start the application.
 .DEFAULT_GOAL := help
-.PHONY: help up down logs build pull typecheck smoke dockerhub-description
+.PHONY: help up down logs build pull test typecheck smoke dockerhub-description
 
 COMPOSE ?= docker compose
 # Git Bash on Windows rewrites arguments that look like paths before Docker sees them
@@ -27,11 +27,14 @@ build: ## Build the images from this checkout, pulling the newest base images (a
 pull: ## Fetch the published images (skouedlabs/portal-ng-*)
 	$(COMPOSE) pull
 
-typecheck: ## Build the frontend, which is what catches a broken component
-	docker run --rm -v "$(CURDIR)/frontend:/app" -w /app node:22-alpine sh -c 'npm ci && npm run build'
+test: ## Run the frontend test suite (Homer import/export, routing)
+	docker run --rm -v "$(CURDIR)/frontend:/app" -w /app node:24-alpine sh -c 'npm ci && npm test'
 
-# What CI calls "the stack starts and answers". There is no unit test suite yet, so this is the check
-# that matters: it starts the real compose file and asks the running application a few questions.
+typecheck: ## Build the frontend, which is what catches a broken component
+	docker run --rm -v "$(CURDIR)/frontend:/app" -w /app node:24-alpine sh -c 'npm ci && npm run build'
+
+# What CI calls "the stack starts and answers": it starts the real compose file and asks the running
+# application a few questions. The unit tests cover logic; this covers the thing actually running.
 smoke: ## Start the stack, check that it answers, then tear it down
 	$(COMPOSE) up -d --build --wait --wait-timeout 300
 	curl -fsS http://127.0.0.1:8080/api/health | grep -q '"status":"ok"'

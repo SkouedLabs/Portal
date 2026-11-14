@@ -6,10 +6,11 @@
 
 ## How I checked it
 
-<!-- What you did in the running application. There is no unit test suite yet, so this part matters. -->
+<!-- The test you added, and what you did in the running application. -->
 
 ## Checklist
 
+- [ ] `make test` passes (and a fix comes with the test that was failing, where one can be written)
 - [ ] `make typecheck` passes (the frontend builds)
 - [ ] `make smoke` passes (the stack starts and answers)
 - [ ] The documentation in `docs/` is updated if the behaviour changed
