@@ -13,4 +13,4 @@ python-multipart>=0.0.18
 pillow>=11.0
 webauthn>=2.2,<4
 pyotp>=2.9
-segno>=1.6
+segno>=1.6.6
