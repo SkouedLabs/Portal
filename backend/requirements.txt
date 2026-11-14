@@ -14,7 +14,7 @@ psycopg[binary]>=3.3,<4
 pydantic>=2.14,<3
 
 argon2-cffi>=25.1
-cryptography>=50
+cryptography>=50.0.2
 PyJWT[crypto]>=2.15,<3
 httpx>=0.28.1,<1
 
