@@ -1,6 +1,6 @@
 # Debian trixie ships OpenSSL 3.5 => hybrid TLS 1.3 X25519MLKEM768 for
 # outgoing connections (LDAPS, OIDC provider) when the remote server supports it.
-FROM python:3.13-slim-trixie
+FROM python:3.15-slim-trixie
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
