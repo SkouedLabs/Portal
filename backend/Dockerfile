@@ -4,7 +4,7 @@
 # newer than Debian trixie's 3.5.7, and was checked to negotiate X25519MLKEM768 against a server
 # that offers it, so nothing is given up by being smaller. If a future base drops below OpenSSL
 # 3.5, the post-quantum claim in docs/security.md goes with it.
-FROM python:3.14-alpine
+FROM python:3.15-alpine
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
