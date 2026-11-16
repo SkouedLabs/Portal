@@ -3,7 +3,7 @@
 # fixes on its own — the cost is that a build is not bit-for-bit reproducible, and that a new
 # minor can change behaviour without a commit here. See docs/development.md.
 
-fastapi>=0.162,<1
+fastapi>=0.162.5,<1
 uvicorn[standard]>=0.54,<1
 # FastAPI's own dependency, named here because the application's shape depends on it: 1.0 moved
 # enough internals that it is worth being deliberate about the next major.
