@@ -17,7 +17,7 @@ x-hardening: &hardening
 services:
   db:
     <<: *hardening
-    image: postgres:17-alpine
+    image: postgres:19-alpine
     # Runs directly as the "postgres" user of the image (uid 70) instead of starting as root.
     user: "70:70"
     restart: unless-stopped
